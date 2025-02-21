@@ -1,0 +1,14 @@
+@echo off
+set db_user=root
+set db_pass=your_password
+set db_name=your_database
+set db_host=localhost
+set mysql_path="C:\xampp\mysql\bin\mysql.exe"
+
+for %%f in (*.sql) do (
+    echo Importing %%f ...
+    %mysql_path% -u%db_user% -p%db_pass% -h%db_host% %db_name% < "%%f"
+)
+
+echo Tous les fichiers SQL ont été importés !
+pause
