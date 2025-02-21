@@ -12,3 +12,116 @@ for %%f in (*.sql) do (
 
 echo Tous les fichiers SQL ont été importés !
 pause
+# **Automatisation de l'Insertion des Données SQL dans XAMPP**
+
+## **1. Contexte et Objectifs**
+
+### **Contexte**
+
+Actuellement, l'insertion des données dans la base MySQL de notre application se fait manuellement via l’importation d’un fichier SQL unique. Or, nous avons plusieurs fichiers SQL générés, et à l’avenir, nous n’aurons plus d’accès direct à la base de données qui sera hébergée dans un autre département.
+
+### **Objectifs**
+
+- Automatiser l’insertion des fichiers SQL dans la base MySQL sous XAMPP.
+- Réduire les actions manuelles et limiter les erreurs.
+- Assurer un contrôle des nouvelles données avant leur insertion définitive.
+- Garantir l’intégrité et la sécurité des données.
+
+---
+
+## **2. Approche Adoptée**
+
+### **1️⃣ Fusionner tous les fichiers SQL en un seul fichier**
+
+📌 **Pourquoi ?** La plateforme actuelle permet d’importer un seul fichier SQL à la fois.
+
+✅ **Solution :**
+
+- Regrouper tous les fichiers SQL dans un fichier unique avant l'importation.
+- Utilisation d’une commande `cmd` pour concaténer les fichiers SQL :
+  ```sh
+  cd "C:\Users\taktourb\Downloads\MO\"
+  copy /b insert_statements_*.sql all_inserts.sql
+  ```
+- Importation de `all_inserts.sql` via l’interface de l’application.
+
+### **2️⃣ Automatiser l’importation avec un script batch**
+
+📌 **Pourquoi ?** Importer plusieurs fichiers SQL sans intervention humaine.
+
+✅ **Solution :**
+
+- Création d’un fichier batch `import_all.bat` qui exécute tous les fichiers SQL du dossier.
+- Script batch utilisé :
+  ```bat
+  @echo off
+  set db_user=root
+  set db_pass=your_password
+  set db_name=your_database
+  set db_host=localhost
+  set mysql_path="C:\xampp\mysql\bin\mysql.exe"
+
+  for %%f in (*.sql) do (
+      echo Importing %%f ...
+      %mysql_path% -u%db_user% -p%db_pass% -h%db_host% %db_name% < "%%f"
+  )
+
+  echo Tous les fichiers SQL ont été importés !
+  pause
+  ```
+- Exécution automatique de l’importation avec `double-clic` sur `import_all.bat`.
+
+### **3️⃣ Sécuriser les insertions avec une table temporaire**
+
+📌 **Pourquoi ?** Éviter que des erreurs dans les fichiers SQL n’affectent la base principale.
+
+✅ **Solution :**
+
+- Importer les données dans une **table temporaire** avant validation.
+- Création de la table temporaire :
+  ```sql
+  CREATE TABLE IF NOT EXISTS morningcheck_temp LIKE morningcheck;
+  ```
+- Modifier les fichiers SQL pour insérer les données dans `morningcheck_temp` au lieu de `morningcheck`.
+- Après validation des données, fusionner avec la table principale :
+  ```sql
+  INSERT INTO morningcheck SELECT * FROM morningcheck_temp;
+  DROP TABLE morningcheck_temp;
+  ```
+
+---
+
+## **3. Bénéfices de l’Automatisation**
+
+| **Critères**            | **Avant l'automatisation**          | **Après l'automatisation**            |
+| ----------------------- | ----------------------------------- | ------------------------------------- |
+| **Temps de traitement** | Importation manuelle                | 100% automatisée                      |
+| **Fiabilité**           | Risque d’erreurs humaines           | Vérification avant insertion          |
+| **Sécurité**            | Modification directe de la base     | Insertion dans une table temporaire   |
+| **Scalabilité**         | Traitement limité à un seul fichier | Importation de plusieurs fichiers SQL |
+
+---
+
+## **4. Recommandations et Mise en Place**
+
+### **📌 Mise en place immédiate :**
+
+✅ Création du script batch `import_all.bat` pour l’importation automatique.
+✅ Test de la fusion des fichiers SQL en un seul fichier (`copy /b`).
+
+### **📌 Sécurisation de la base de données :**
+
+✅ Intégration d’une table temporaire pour tester les nouvelles données avant insertion.
+✅ Vérification des logs d’importation pour identifier les éventuelles erreurs.
+
+### **📌 Suivi et monitoring :**
+
+✅ Intégration d’un tableau de bord Power BI pour suivre l’évolution des insertions.
+✅ Mise en place d’un système d’alertes en cas d’erreur d’importation.
+
+---
+
+## **5. Conclusion**
+
+Grâce à cette approche d'automatisation, nous pouvons garantir une **insertion rapide, fiable et sécurisée** des données dans MySQL sous XAMPP, sans intervention manuelle. Cette solution réduit les erreurs et optimise la gestion des fichiers SQL pour assurer une meilleure scalabilité du processus.
+
