@@ -121,7 +121,62 @@ Actuellement, l'insertion des données dans la base MySQL de notre application s
 
 ---
 
+
+package com.socgen.unibank.services.core.usecases.impl;
+
+import com.socgen.unibank.services.core.usecases.IncidentService;
+import com.socgen.unibank.services.core.model.Incident;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class IncidentServiceImpl implements IncidentService {
+
+    private final List<Incident> incidents = new ArrayList<>();
+
+    @Override
+    public Incident createIncident(Incident incident) {
+        // Logique de création simple (temporaire)
+        incidents.add(incident);
+        return incident;
+    }
+
+    @Override
+    public List<Incident> getAllIncidents() {
+        return incidents;
+    }
+
+    @Override
+    public Incident getIncidentById(String id) {
+        return incidents.stream()
+                .filter(i -> i.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
+    public void deleteIncident(String id) {
+        incidents.removeIf(i -> i.getId().equals(id));
+    }
+}
+
+
+
 ## **5. Conclusion**
 
 Grâce à cette approche d'automatisation, nous pouvons garantir une **insertion rapide, fiable et sécurisée** des données dans MySQL sous XAMPP, sans intervention manuelle. Cette solution réduit les erreurs et optimise la gestion des fichiers SQL pour assurer une meilleure scalabilité du processus.
 
+package com.socgen.unibank.services.core.usecases;
+
+import com.socgen.unibank.services.core.model.Incident;
+
+import java.util.List;
+
+public interface IncidentService {
+    Incident createIncident(Incident incident);
+    List<Incident> getAllIncidents();
+    Incident getIncidentById(String id);
+    void deleteIncident(String id);
+}
