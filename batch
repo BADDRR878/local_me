@@ -180,3 +180,6 @@ public interface IncidentService {
     Incident getIncidentById(String id);
     void deleteIncident(String id);
 }
+Réunion tenue avec Anas Mokdad pour discuter des axes techniques de l’application et partager une première version du diagramme d’architecture.
+
+Discussion autour de l’utilisation encadrée de l’IA pour optimiser les tâches chronophages dans le projet.
