@@ -1,35 +1,45 @@
-@echo off
-set db_user=root
-set db_pass=your_password
-set db_name=your_database
-set db_host=localhost
-set mysql_path="C:\xampp\mysql\bin\mysql.exe"
+package com.socgen.unibank.services.core.model;
 
-for %%f in (*.sql) do (
-    echo Importing %%f ...
-    %mysql_path% -u%db_user% -p%db_pass% -h%db_host% %db_name% < "%%f"
-)
+import java.time.LocalDateTime;
 
-echo Tous les fichiers SQL ont été importés !
-pause
-# **Automatisation de l'Insertion des Données SQL dans XAMPP**
+public class Incident {
+    private Long id;
+    private String description;
+    private String rootCause;
+    private String criticite;
+    private LocalDateTime dateDebut;
+    private String resume;
+    private String impact;
+    private LocalDateTime dateResolution;
+    private String solution;
+    private String status;
+    private String lien;
+    private String type;
 
-## **1. Contexte et Objectifs**
+    // Getters & Setters
+}
 
-### **Contexte**
+## **2. Approche Adoptée
+package com.socgen.unibank.services.api.model;
 
-Actuellement, l'insertion des données dans la base MySQL de notre application se fait manuellement via l’importation d’un fichier SQL unique. Or, nous avons plusieurs fichiers SQL générés, et à l’avenir, nous n’aurons plus d’accès direct à la base de données qui sera hébergée dans un autre département.
+import java.time.LocalDateTime;
 
-### **Objectifs**
+public class IncidentDTO {
+    private Long id;
+    private String description;
+    private String rootCause;
+    private String criticite;
+    private LocalDateTime dateDebut;
+    private String resume;
+    private String impact;
+    private LocalDateTime dateResolution;
+    private String solution;
+    private String status;
+    private String lien;
+    private String type;
 
-- Automatiser l’insertion des fichiers SQL dans la base MySQL sous XAMPP.
-- Réduire les actions manuelles et limiter les erreurs.
-- Assurer un contrôle des nouvelles données avant leur insertion définitive.
-- Garantir l’intégrité et la sécurité des données.
-
----
-
-## **2. Approche Adoptée**
+    // Getters & Setters
+}
 
 ### **1️⃣ Fusionner tous les fichiers SQL en un seul fichier**
 
