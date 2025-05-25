@@ -1,0 +1,123 @@
+// core/ports/in/ImportJiraDataUseCase.java
+package com.checkapp.core.ports.in;
+
+import com.checkapp.core.domain.entities.Incident;
+import java.util.List;
+
+public interface ImportJiraDataUseCase {
+    List<Incident> importIncidents(String jqlFilter);
+    void syncAllData();
+    ImportResult importWithFilter(ImportRequest request);
+}
+
+// core/ports/in/ImportRequest.java
+package com.checkapp.core.ports.in;
+
+public class ImportRequest {
+    private String jqlFilter;
+    private String businessLine;
+    private boolean incrementalSync;
+    
+    public ImportRequest(String jqlFilter, String businessLine, boolean incrementalSync) {
+        this.jqlFilter = jqlFilter;
+        this.businessLine = businessLine;
+        this.incrementalSync = incrementalSync;
+    }
+    
+    // Getters et setters
+    public String getJqlFilter() { return jqlFilter; }
+    public void setJqlFilter(String jqlFilter) { this.jqlFilter = jqlFilter; }
+    
+    public String getBusinessLine() { return businessLine; }
+    public void setBusinessLine(String businessLine) { this.businessLine = businessLine; }
+    
+    public boolean isIncrementalSync() { return incrementalSync; }
+    public void setIncrementalSync(boolean incrementalSync) { this.incrementalSync = incrementalSync; }
+}
+
+// core/ports/in/ImportResult.java
+package com.checkapp.core.ports.in;
+
+import java.util.List;
+
+public class ImportResult {
+    private int totalImported;
+    private int totalSkipped;
+    private int totalErrors;
+    private List<String> errorMessages;
+    private boolean success;
+    
+    public ImportResult(int totalImported, int totalSkipped, int totalErrors, 
+                       List<String> errorMessages, boolean success) {
+        this.totalImported = totalImported;
+        this.totalSkipped = totalSkipped;
+        this.totalErrors = totalErrors;
+        this.errorMessages = errorMessages;
+        this.success = success;
+    }
+    
+    // Getters et setters
+    public int getTotalImported() { return totalImported; }
+    public int getTotalSkipped() { return totalSkipped; }
+    public int getTotalErrors() { return totalErrors; }
+    public List<String> getErrorMessages() { return errorMessages; }
+    public boolean isSuccess() { return success; }
+}
+
+// core/ports/out/JiraGateway.java
+package com.checkapp.core.ports.out;
+
+import com.checkapp.core.domain.entities.Incident;
+import java.util.List;
+import java.util.Optional;
+
+public interface JiraGateway {
+    List<Incident> fetchIncidentsByJql(String jqlQuery);
+    Optional<Incident> fetchIncidentById(String incidentId);
+    List<Incident> fetchRecentIncidents(int hours);
+    boolean testConnection();
+}
+
+// core/ports/out/IncidentRepository.java
+package com.checkapp.core.ports.out;
+
+import com.checkapp.core.domain.entities.Incident;
+import java.util.List;
+import java.util.Optional;
+
+public interface IncidentRepository {
+    void save(Incident incident);
+    void saveAll(List<Incident> incidents);
+    Optional<Incident> findById(String id);
+    List<Incident> findByBusinessLine(String businessLine);
+    List<Incident> findByPriorite(String priorite);
+    boolean existsById(String id);
+    void deleteById(String id);
+    List<Incident> findAll();
+}
+
+// core/ports/out/ApplicationRepository.java
+package com.checkapp.core.ports.out;
+
+import com.checkapp.core.domain.entities.Application;
+import java.util.Optional;
+
+public interface ApplicationRepository {
+    void save(Application application);
+    Optional<Application> findById(String id);
+    Optional<Application> findByNom(String nom);
+    boolean existsById(String id);
+}
+
+// core/ports/out/FilialeRepository.java
+package com.checkapp.core.ports.out;
+
+import com.checkapp.core.domain.entities.Filiale;
+import java.util.Optional;
+
+public interface FilialeRepository {
+    void save(Filiale filiale);
+    Optional<Filiale> findById(String id);
+    Optional<Filiale> findByNom(String nom);
+    boolean existsById(String id);
+}
