@@ -207,5 +207,6 @@ public interface IncidentService {
     void deleteIncident(String id);
 }
 Réunion tenue avec Anas Mokdad pour discuter des axes techniques de l’application et partager une première version du diagramme d’architecture.
-
+\\\\\\\\\
 Discussion autour de l’utilisation encadrée de l’IA pour optimiser les tâches chronophages dans le projet.
+Suite à l’analyse et à la vérification effectuées, tout est conforme au niveau du contrat. Le client a bien reçu les quatre messages OTP, envoyés après chaque résiliation : deux messages le 26 mars et deux autres le 30 avril. Il est donc important de s'assurer que le client utilise le message correspondant à la demande en cours.
