@@ -210,3 +210,25 @@ Réunion tenue avec Anas Mokdad pour discuter des axes techniques de l’applica
 \\\\\\\\\
 Discussion autour de l’utilisation encadrée de l’IA pour optimiser les tâches chronophages dans le projet.
 Suite à l’analyse et à la vérification effectuées, tout est conforme au niveau du contrat. Le client a bien reçu les quatre messages OTP, envoyés après chaque résiliation : deux messages le 26 mars et deux autres le 30 avril. Il est donc important de s'assurer que le client utilise le message correspondant à la demande en cours.
+package com.socgen.unibank.services.core.usecases;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.IncidentRequest;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.api.usecases.CreateIncident;
+import org.springframework.stereotype.Service;
+
+@Service
+public class CreateIncidentImpl implements CreateIncident {
+
+    @Override
+    public IncidentResponse handle(IncidentRequest input, RequestContext context) {
+        // Simuler un enregistrement incident
+        return new IncidentResponse(
+            1L,
+            input.getDescription(),
+            input.getStatus(),
+            input.getCriticite()
+        );
+    }
+}
