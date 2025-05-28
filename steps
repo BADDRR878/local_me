@@ -1,0 +1,109 @@
+// Suivons les prochaines étapes pour compléter l'entité Incident dans ton architecture hexagonale.
+
+// 1. IncidentRepository dans core (interface)
+package com.socgen.unibank.services.core.repository;
+
+import com.socgen.unibank.services.core.model.Incident;
+import java.util.List;
+import java.util.Optional;
+
+public interface IncidentRepository {
+    Incident save(Incident incident);
+    Optional<Incident> findById(Long id);
+    List<Incident> findAll();
+    void deleteById(Long id);
+}
+
+
+// 2. Implémentation JPA dans gateway (IncidentRepositoryImpl)
+package com.socgen.unibank.services.gateway.outbound.persistence.jpa;
+
+import com.socgen.unibank.services.core.model.Incident;
+import com.socgen.unibank.services.core.repository.IncidentRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public class IncidentRepositoryImpl implements IncidentRepository {
+
+    private final JpaIncidentRepository jpaRepository;
+
+    public IncidentRepositoryImpl(JpaIncidentRepository jpaRepository) {
+        this.jpaRepository = jpaRepository;
+    }
+
+    @Override
+    public Incident save(Incident incident) {
+        return jpaRepository.save(incident);
+    }
+
+    @Override
+    public Optional<Incident> findById(Long id) {
+        return jpaRepository.findById(id);
+    }
+
+    @Override
+    public List<Incident> findAll() {
+        return jpaRepository.findAll();
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
+}
+
+// 3. Interface JpaIncidentRepository (Spring Data JPA)
+package com.socgen.unibank.services.gateway.outbound.persistence.jpa;
+
+import com.socgen.unibank.services.core.model.Incident;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface JpaIncidentRepository extends JpaRepository<Incident, Long> {
+}
+
+// 4. Mapping Entity <-> DTO
+// Souvent géré via un mapper manuel ou MapStruct, voici un exemple simple manuel
+package com.socgen.unibank.services.core.mapper;
+
+import com.socgen.unibank.services.api.model.IncidentRequest;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.core.model.Incident;
+
+public class IncidentMapper {
+
+    public static Incident fromRequest(IncidentRequest request) {
+        return new Incident(
+            null,
+            request.getDescription(),
+            request.getRootCause(),
+            request.getCriticite(),
+            request.getDateDebut(),
+            request.getResume(),
+            request.getImpact(),
+            request.getDateResolution(),
+            request.getSolution(),
+            request.getStatus(),
+            request.getLien(),
+            request.getType()
+        );
+    }
+
+    public static IncidentResponse toResponse(Incident incident) {
+        return new IncidentResponse(
+            incident.getId(),
+            incident.getDescription(),
+            incident.getRootCause(),
+            incident.getCriticite(),
+            incident.getDateDebut(),
+            incident.getResume(),
+            incident.getImpact(),
+            incident.getDateResolution(),
+            incident.getSolution(),
+            incident.getStatus(),
+            incident.getLien(),
+            incident.getType()
+        );
+    }
+}
