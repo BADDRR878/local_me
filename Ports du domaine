@@ -121,3 +121,17 @@ public interface FilialeRepository {
     Optional<Filiale> findByNom(String nom);
     boolean existsById(String id);
 }
+@Tag(name = "Incidents")
+@RequestMapping(name = "incidents", produces = "application/json")
+public interface CheckappAPI extends CreateIncident {
+
+    @Operation(
+        summary = "Créer un nouvel incident",
+        parameters = {
+            @Parameter(ref = "entityIdHeader", required = true)
+        }
+    )
+    @PostMapping("/incident")
+    @Override
+    IncidentResponse handle(@RequestBody IncidentRequest input, RequestContext ctx);
+}
