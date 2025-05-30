@@ -46,3 +46,22 @@ public interface IncidentJpaRepository extends JpaRepository<IncidentEntity, Lon
 
     // Ajouter d'autres requêtes personnalisées si besoin...
 }
+
+//////
+package com.socgen.unibank.services.core.repository;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface IncidentRepository {
+    IncidentEntity save(IncidentEntity incident);
+    CreateIncidentResponse mapToDto(IncidentEntity incident);
+
+    List<CreateIncidentResponse> getAllIncidents();
+    Optional<CreateIncidentResponse> getIncidentDetails(Long id);
+
+    void deleteById(Long id);
+}
