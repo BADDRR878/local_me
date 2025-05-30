@@ -1,0 +1,48 @@
+package com.checkapp.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Setter
+@Table(name = "incident")
+public class IncidentEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String description;
+    private String rootCause;
+    private String criticite;
+
+    private LocalDateTime dateDebut;
+    private LocalDateTime dateResolution;
+
+    private String resume;
+    private String impact;
+    private String solution;
+
+    private String status;
+    private String lien;
+    private String type;
+}
+
+
+
+***********
+package com.checkapp.services.gateways.outbound.persistence.jpa;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface IncidentJpaRepository extends JpaRepository<IncidentEntity, Long> {
+
+    // Exemples de méthodes personnalisées si tu veux filtrer
+    IncidentEntity findByLien(String lien);
+
+    // Ajouter d'autres requêtes personnalisées si besoin...
+}
