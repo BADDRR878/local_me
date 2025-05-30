@@ -65,3 +65,65 @@ public interface IncidentRepository {
 
     void deleteById(Long id);
 }
+**********
+package com.checkapp.services.core.utils;
+
+import com.checkapp.services.api.model.CreateIncidentResponse;
+import com.checkapp.services.gateways.outbound.persistence.jpa.IncidentEntity;
+import com.checkapp.services.gateways.outbound.persistence.jpa.IncidentJpaRepo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Repository
+public class IncidentRepositoryImpl implements IncidentRepository {
+
+    private final IncidentJpaRepo incidentJpaRepo;
+
+    @Autowired
+    public IncidentRepositoryImpl(IncidentJpaRepo incidentJpaRepo) {
+        this.incidentJpaRepo = incidentJpaRepo;
+    }
+
+    @Override
+    public IncidentEntity save(IncidentEntity incident) {
+        return incidentJpaRepo.save(incident);
+    }
+
+    @Override
+    public Optional<IncidentEntity> findById(Long id) {
+        return incidentJpaRepo.findById(id);
+    }
+
+    @Override
+    public List<IncidentEntity> findAll() {
+        return incidentJpaRepo.findAll();
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        incidentJpaRepo.deleteById(id);
+    }
+
+    @Override
+    public CreateIncidentResponse mapToDto(IncidentEntity entity) {
+        CreateIncidentResponse response = new CreateIncidentResponse();
+        response.setId(entity.getId());
+        response.setDescription(entity.getDescription());
+        response.setRootCause(entity.getRootCause());
+        response.setCriticite(entity.getCriticite());
+        response.setDateDebut(entity.getDateDebut());
+        response.setResume(entity.getResume());
+        response.setImpact(entity.getImpact());
+        response.setDateResolution(entity.getDateResolution());
+        response.setSolution(entity.getSolution());
+        response.setStatus(entity.getStatus());
+        response.setLien(entity.getLien());
+        response.setType(entity.getType());
+        return response;
+    }
+}
+*****************
