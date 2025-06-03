@@ -149,6 +149,8 @@ Supprimer les anciens messages du téléphone
 Passer un appel pour vérifier la disponibilité du réseau
 
 
+Concernant le client ayant l’ID client 1000220147 et le Digital ID 1114054, après analyse et vérification, il apparaît que la dernière tentative de changement de mot de passe a été effectuée avant la mise à jour réussie du contrat (changement de numéro de téléphone). Par conséquent, le message a été envoyé à l’ancien numéro et a expiré.
 
+Nous vous invitons à effectuer un nouveau changement de mot de passe, afin qu’il soit envoyé et reçu sur le numéro actuellement associé au contrat.
 
 
