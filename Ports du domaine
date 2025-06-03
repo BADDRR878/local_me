@@ -135,3 +135,12 @@ public interface CheckappAPI extends CreateIncident {
     @Override
     IncidentResponse handle(@RequestBody IncidentRequest input, RequestContext ctx);
 }
+Après vérification, l’état du client est stable. Suite à sa demande de changement de mot de passe effectuée le 23/05, un message a bien été envoyé le même jour à 16h47. Si le client rencontre toujours un problème, il est possible que cela soit lié à son opérateur.
+
+
+
+
+
+
+
+
