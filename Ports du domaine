@@ -1,3 +1,14 @@
+Après analyse et vérification, nous avons constaté plusieurs tentatives de changement de mot de passe au cours des 10 derniers jours, dont les messages sont restés en attente avant d’expirer.
+Merci de vérifier que le numéro se terminant par *62 est bien actif et couvert par l’opérateur Orange BF.
+Si ce n’est pas le cas, merci de mettre à jour le numéro dans le contrat, puis de refaire une demande de réinitialisation du mot de passe pour que le client puisse recevoir son code d’activation.
+
+
+
+
+
+
+
+
 // core/ports/in/ImportJiraDataUseCase.java
 package com.checkapp.core.ports.in;
 
