@@ -5,7 +5,9 @@ Si ce n’est pas le cas, merci de mettre à jour le numéro dans le contrat, pu
 Après vérification de l’état du contrat du client et analyse des logs, je vous confirme que la relation a bien reçu son code d’activation ainsi que des codes de vérification le 03 juin, accompagnés d’une notification de tentative de connexion.
 Nous vous invitons à vérifier si le numéro du client est actif et bien couvert par l’opérateur MTN CI afin de garantir la bonne réception des messages.
 
-
+Nous avons constaté que plusieurs tickets rencontrent des problèmes liés à l’opérateur Orange BF.
+Après analyse, il semble que les messages restent en attente puis expirent, ce qui indique un souci potentiel au niveau de la livraison par l’opérateur.
+Une communication est en cours avec les équipes Infobip afin d’identifier et de mieux comprendre l’origine de ce dysfonctionnement.
 
 
 
