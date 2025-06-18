@@ -1,0 +1,287 @@
+// Structure :
+// - checkapp-core
+// - checkapp-api
+// - checkapp-gateway
+
+// =========================
+// 📁 checkapp-core/domain/model/Incident.java
+package com.checkapp.core.domain.model;
+
+import java.time.LocalDateTime;
+
+public class Incident {
+    private String key;
+    private String summary;
+    private String description;
+    private String status;
+    private String priority;
+    private String type;
+    private String reporter;
+    private String assignee;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public Incident() {}
+
+    // Getters & Setters
+    // (omitted for brevity)
+}
+
+// =========================
+// 📁 checkapp-api/services/api/model/IncidentResponse.java
+package com.checkapp.api.services.api.model;
+
+import java.time.LocalDateTime;
+
+public class IncidentResponse {
+    public String key;
+    public String summary;
+    public String description;
+    public String status;
+    public String priority;
+    public String type;
+    public String reporter;
+    public String assignee;
+    public LocalDateTime createdAt;
+    public LocalDateTime updatedAt;
+}
+
+// =========================
+// 📁 checkapp-api/services/api/usecases/ImportJiraIncidentsCommand.java
+package com.checkapp.api.services.api.usecases;
+
+public class ImportJiraIncidentsCommand {
+    private String projectKey;
+
+    public ImportJiraIncidentsCommand(String projectKey) {
+        this.projectKey = projectKey;
+    }
+
+    public String getProjectKey() {
+        return projectKey;
+    }
+}
+
+// =========================
+// 📁 checkapp-api/services/api/usecases/ImportJiraIncidentsUseCase.java
+package com.checkapp.api.services.api.usecases;
+
+public interface ImportJiraIncidentsUseCase {
+    void importFromJira(ImportJiraIncidentsCommand command);
+}
+
+// =========================
+// 📁 checkapp-core/ports/outbound/JiraIncidentImporterPort.java
+package com.checkapp.core.ports.outbound;
+
+import com.checkapp.core.domain.model.Incident;
+import java.util.List;
+
+public interface JiraIncidentImporterPort {
+    List<Incident> fetchIncidents(String projectKey);
+}
+
+// =========================
+// 📁 checkapp-core/ports/outbound/IncidentRepository.java
+package com.checkapp.core.ports.outbound;
+
+import com.checkapp.core.domain.model.Incident;
+import java.util.List;
+
+public interface IncidentRepository {
+    void saveAll(List<Incident> incidents);
+}
+
+// =========================
+// 📁 checkapp-core/services/core/usecases/ImportJiraIncidentsService.java
+package com.checkapp.core.services.core.usecases;
+
+import com.checkapp.api.services.api.usecases.ImportJiraIncidentsUseCase;
+import com.checkapp.api.services.api.usecases.ImportJiraIncidentsCommand;
+import com.checkapp.core.domain.model.Incident;
+import com.checkapp.core.ports.outbound.JiraIncidentImporterPort;
+import com.checkapp.core.ports.outbound.IncidentRepository;
+
+import java.util.List;
+
+public class ImportJiraIncidentsService implements ImportJiraIncidentsUseCase {
+
+    private final JiraIncidentImporterPort jiraImporter;
+    private final IncidentRepository incidentRepository;
+
+    public ImportJiraIncidentsService(JiraIncidentImporterPort jiraImporter, IncidentRepository incidentRepository) {
+        this.jiraImporter = jiraImporter;
+        this.incidentRepository = incidentRepository;
+    }
+
+    @Override
+    public void importFromJira(ImportJiraIncidentsCommand command) {
+        List<Incident> incidents = jiraImporter.fetchIncidents(command.getProjectKey());
+        incidentRepository.saveAll(incidents);
+    }
+}
+
+// =========================
+// 📁 checkapp-gateway/services/gateway/outbound/JiraIncidentImporterAdapter.java
+package com.checkapp.gateway.services.gateway.outbound;
+
+import com.checkapp.core.domain.model.Incident;
+import com.checkapp.core.ports.outbound.JiraIncidentImporterPort;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
+
+import java.util.*;
+
+@Component
+public class JiraIncidentImporterAdapter implements JiraIncidentImporterPort {
+
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final String JIRA_API_URL = "https://yourdomain.atlassian.net/rest/api/2/search?jql=project=%s";
+    private final String JIRA_TOKEN = "Basic your_token_here";
+
+    @Override
+    public List<Incident> fetchIncidents(String projectKey) {
+        String url = String.format(JIRA_API_URL, projectKey);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", JIRA_TOKEN);
+        headers.set("Accept", "application/json");
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) response.getBody().get("issues");
+        List<Incident> result = new ArrayList<>();
+
+        for (Map<String, Object> issue : issues) {
+            Map<String, Object> fields = (Map<String, Object>) issue.get("fields");
+            Incident i = new Incident();
+            i.setKey((String) issue.get("key"));
+            i.setSummary((String) fields.get("summary"));
+            i.setDescription((String) fields.get("description"));
+            i.setStatus(((Map) fields.get("status")).get("name").toString());
+            i.setPriority(fields.get("priority") != null ? ((Map) fields.get("priority")).get("name").toString() : "N/A");
+            i.setType(((Map) fields.get("issuetype")).get("name").toString());
+            i.setReporter(fields.get("reporter") != null ? ((Map) fields.get("reporter")).get("displayName").toString() : "N/A");
+            i.setAssignee(fields.get("assignee") != null ? ((Map) fields.get("assignee")).get("displayName").toString() : "N/A");
+            result.add(i);
+        }
+        return result;
+    }
+}
+
+// =========================
+// 📁 checkapp-gateway/services/gateway/outbound/persistence/jpa/IncidentEntity.java
+package com.checkapp.gateway.services.gateway.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "incidents")
+public class IncidentEntity {
+
+    @Id
+    private String key;
+    private String summary;
+    private String description;
+    private String status;
+    private String priority;
+    private String type;
+    private String reporter;
+    private String assignee;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public static IncidentEntity fromDomain(com.checkapp.core.domain.model.Incident incident) {
+        IncidentEntity e = new IncidentEntity();
+        e.key = incident.getKey();
+        e.summary = incident.getSummary();
+        e.description = incident.getDescription();
+        e.status = incident.getStatus();
+        e.priority = incident.getPriority();
+        e.type = incident.getType();
+        e.reporter = incident.getReporter();
+        e.assignee = incident.getAssignee();
+        e.createdAt = incident.getCreatedAt();
+        e.updatedAt = incident.getUpdatedAt();
+        return e;
+    }
+}
+
+// =========================
+// 📁 checkapp-gateway/services/gateway/outbound/persistence/jpa/JpaIncidentRepository.java
+package com.checkapp.gateway.services.gateway.outbound.persistence.jpa;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface JpaIncidentRepository extends JpaRepository<IncidentEntity, String> {
+}
+
+// =========================
+// 📁 checkapp-gateway/services/gateway/outbound/IncidentJpaAdapter.java
+package com.checkapp.gateway.services.gateway.outbound;
+
+import com.checkapp.core.domain.model.Incident;
+import com.checkapp.core.ports.outbound.IncidentRepository;
+import com.checkapp.gateway.services.gateway.outbound.persistence.jpa.JpaIncidentRepository;
+import com.checkapp.gateway.services.gateway.outbound.persistence.jpa.IncidentEntity;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Component
+public class IncidentJpaAdapter implements IncidentRepository {
+
+    private final JpaIncidentRepository jpaRepository;
+
+    public IncidentJpaAdapter(JpaIncidentRepository jpaRepository) {
+        this.jpaRepository = jpaRepository;
+    }
+
+    @Override
+    public void saveAll(List<Incident> incidents) {
+        List<IncidentEntity> entities = incidents.stream()
+            .map(IncidentEntity::fromDomain)
+            .collect(Collectors.toList());
+        jpaRepository.saveAll(entities);
+    }
+}
+
+// =========================
+// 📁 checkapp-api/CheckappAPI.java
+package com.checkapp.api;
+
+import com.checkapp.api.services.api.usecases.ImportJiraIncidentsCommand;
+import org.springframework.web.bind.annotation.*;
+
+@RequestMapping("/api/incidents")
+public interface CheckappAPI {
+    @PostMapping("/import")
+    void importIncidents(@RequestBody ImportJiraIncidentsCommand command);
+}
+
+// =========================
+// 📁 checkapp-gateway/services/gateway/inbound/CheckappEndpoint.java
+package com.checkapp.gateway.services.gateway.inbound;
+
+import com.checkapp.api.CheckappAPI;
+import com.checkapp.api.services.api.usecases.ImportJiraIncidentsCommand;
+import com.checkapp.api.services.api.usecases.ImportJiraIncidentsUseCase;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class CheckappEndpoint implements CheckappAPI {
+
+    private final ImportJiraIncidentsUseCase importUseCase;
+
+    public CheckappEndpoint(ImportJiraIncidentsUseCase importUseCase) {
+        this.importUseCase = importUseCase;
+    }
+
+    @Override
+    public void importIncidents(ImportJiraIncidentsCommand command) {
+        importUseCase.importFromJira(command);
+    }
+}
