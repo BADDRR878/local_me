@@ -1,0 +1,202 @@
+// 🔁 STRUCTURE DU MODULE INCIDENT POUR CHECKAPP
+
+// === MODULE: checkapp-api ===
+// FICHIER: checkapp-api/src/main/java/com/socgen/unibank/services/api/model/CreateIncidentRequest.java
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CreateIncidentRequest {
+    private String description;
+    private String rootCause;
+    private String criticite;
+    private LocalDateTime dateDebut;
+    private String resume;
+    private String impact;
+    private LocalDateTime dateResolution;
+    private String solution;
+    private String status;
+    private String lien;
+    private String type;
+}
+
+// ===
+// FICHIER: checkapp-api/src/main/java/com/socgen/unibank/services/api/model/CreateIncidentResponse.java
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CreateIncidentResponse {
+    private Long id;
+    private String description;
+    private String rootCause;
+    private String criticite;
+    private LocalDateTime dateDebut;
+    private String resume;
+    private String impact;
+    private LocalDateTime dateResolution;
+    private String solution;
+    private String status;
+    private String lien;
+    private String type;
+}
+
+// ===
+// FICHIER: checkapp-api/src/main/java/com/socgen/unibank/services/api/usecases/CreateIncident.java
+package com.socgen.unibank.services.api.usecases;
+
+import com.socgen.unibank.platform.domain.Command;
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+
+public interface CreateIncident extends Command {
+    CreateIncidentResponse handle(CreateIncidentRequest input, RequestContext context);
+}
+
+// === MODULE: checkapp-core ===
+// FICHIER: checkapp-core/src/main/java/com/socgen/unibank/services/core/usecases/CreateIncidentImpl.java
+package com.socgen.unibank.services.core.usecases;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.usecases.CreateIncident;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+import com.socgen.unibank.services.core.repository.IncidentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class CreateIncidentImpl implements CreateIncident {
+
+    private final IncidentRepository incidentRepository;
+
+    @Override
+    public CreateIncidentResponse handle(CreateIncidentRequest input, RequestContext context) {
+        IncidentEntity incident = new IncidentEntity();
+        incident.setDescription(input.getDescription());
+        incident.setRootCause(input.getRootCause());
+        incident.setCriticite(input.getCriticite());
+        incident.setDateDebut(input.getDateDebut());
+        incident.setResume(input.getResume());
+        incident.setImpact(input.getImpact());
+        incident.setDateResolution(input.getDateResolution());
+        incident.setSolution(input.getSolution());
+        incident.setStatus(input.getStatus());
+        incident.setLien(input.getLien());
+        incident.setType(input.getType());
+
+        IncidentEntity saved = incidentRepository.save(incident);
+        return incidentRepository.mapToDto(saved);
+    }
+}
+
+// ===
+// FICHIER: checkapp-core/src/main/java/com/socgen/unibank/services/core/repository/IncidentRepository.java
+package com.socgen.unibank.services.core.repository;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+import java.util.Optional;
+
+public interface IncidentRepository {
+    IncidentEntity save(IncidentEntity incident);
+    CreateIncidentResponse mapToDto(IncidentEntity entity);
+    Optional<IncidentEntity> findById(Long id);
+}
+
+// === MODULE: checkapp-gateway ===
+// FICHIER: checkapp-gateway/src/main/java/com/socgen/unibank/services/gateways/outbound/persistence/jpa/IncidentEntity.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Setter
+@Table(name = "incident")
+public class IncidentEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String description;
+    private String rootCause;
+    private String criticite;
+    private LocalDateTime dateDebut;
+    private String resume;
+    private String impact;
+    private LocalDateTime dateResolution;
+    private String solution;
+    private String status;
+    private String lien;
+    private String type;
+}
+
+// ===
+// FICHIER: checkapp-gateway/src/main/java/com/socgen/unibank/services/gateways/outbound/persistence/jpa/IncidentJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface IncidentJpaRepo extends JpaRepository<IncidentEntity, Long> {
+}
+
+// ===
+// FICHIER: checkapp-gateway/src/main/java/com/socgen/unibank/services/gateways/outbound/persistence/IncidentRepositoryImpl.java
+package com.socgen.unibank.services.gateways.outbound.persistence;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.core.repository.IncidentRepository;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentJpaRepo;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import java.util.Optional;
+
+@Component
+@RequiredArgsConstructor
+public class IncidentRepositoryImpl implements IncidentRepository {
+
+    private final IncidentJpaRepo incidentJpaRepo;
+
+    @Override
+    public IncidentEntity save(IncidentEntity incident) {
+        return incidentJpaRepo.save(incident);
+    }
+
+    @Override
+    public CreateIncidentResponse mapToDto(IncidentEntity entity) {
+        return new CreateIncidentResponse(
+            entity.getId(),
+            entity.getDescription(),
+            entity.getRootCause(),
+            entity.getCriticite(),
+            entity.getDateDebut(),
+            entity.getResume(),
+            entity.getImpact(),
+            entity.getDateResolution(),
+            entity.getSolution(),
+            entity.getStatus(),
+            entity.getLien(),
+            entity.getType()
+        );
+    }
+
+    @Override
+    public Optional<IncidentEntity> findById(Long id) {
+        return incidentJpaRepo.findById(id);
+    }
+}
