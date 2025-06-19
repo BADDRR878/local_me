@@ -26,7 +26,12 @@ From our side, we didn’t see any password reset done recently by the client.
 
 Thank you!
 
+Bonjour,
 
+Après analyse, il apparaît que le changement de mot de passe a été effectué avant le traitement du contrat de souscription, ce qui explique l’erreur "user not found in WSO".
+Merci de demander au gestionnaire de client de refaire un changement de mot de passe maintenant que le contrat est actif, afin d’assurer la réception d’un code valable pour accéder au compte.
+
+Bien cordialement,
 
 
 // core/ports/in/ImportJiraDataUseCase.java
