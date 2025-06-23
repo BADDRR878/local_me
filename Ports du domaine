@@ -33,6 +33,12 @@ Merci de demander au gestionnaire de client de refaire un changement de mot de p
 
 Bien cordialement,
 
+Proposition d’améliorations apportant une valeur ajoutée au projet CheckAPP (optimisation de l'organisation, cadrage technique, automatisation…).
+
+Transmission de la version V0 des rapports projet aux parties prenantes pour vérification et validation.
+
+En attente de retour d’Anas Mokdad (côté architecture) concernant la validation de la première version du schéma architectural du projet.
+
 
 // core/ports/in/ImportJiraDataUseCase.java
 package com.checkapp.core.ports.in;
