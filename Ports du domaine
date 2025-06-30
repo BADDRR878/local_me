@@ -1,3 +1,8 @@
+Analyse et tentative d’optimisation des anciennes requêtes utilisées pour le filtrage des KPIs, dans le but d’améliorer la performance et la lisibilité du code.
+
+Réflexion autour de la migration potentielle de JIRA vers Unity, en mettant en avant la nécessité d’anticiper cette transition en garantissant une flexibilité du code et une structure facilement adaptable à d’autres sources de données.
+
+
 Après analyse, il a été constaté une collision au niveau des identifiants des contrats du client, entraînant le rejet de certaines demandes. Des actions ont été engagées afin de régulariser la situation et permettre le bon traitement du dossier.
 
 
