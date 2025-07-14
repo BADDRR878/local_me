@@ -1,12 +1,8 @@
-Suite à nos vérifications et investigations, nous vous confirmons que votre situation est bien régularisée. Les messages ont bien été envoyés, mais ils ont été rejetés au niveau de notre partenaire Infobip, en raison d’un problème de préfixe du numéro.
-
-En effet, le numéro renseigné commence par +2507..., alors qu’il devrait débuter par le préfixe ivoirien +225. Ce décalage empêche la bonne livraison du message.
-
-Nous vous invitons donc à corriger le numéro dans votre profil (en ajoutant le préfixe +225) puis à recommencer la procédure de changement de mot de passe. Vous devriez recevoir le message normalement par la suite.
-
-N’hésitez pas à revenir vers nous en cas de besoin.
-Bien cordialement,
-
+Sujet	Action à faire	Commentaire
+Implémentation gestion des rôles	Définir et implémenter les rôles : ADMIN, TEAM_LEAD, USER	Rôles définis conformément aux exigences fonctionnelles SG ABS pour contrôler l'accès aux fonctionnalités
+Sécurisation des endpoints	Restreindre l'accès aux APIs selon le rôle de l'utilisateur	Utilisation de Spring Security avec @PreAuthorize et configuration via les autorités de chaque rôle
+Configuration JWT	Intégrer les rôles dans le token JWT au moment de l’authentification	Permet à l'application de reconnaître le rôle de l'utilisateur à chaque requête
+Contrôle d'accès UI (React)	Adapter l'interface (boutons, menus) selon les droits liés au rôle	Amélioration de l’expérience utilisateur, chaque rôle ne voit que les actions autorisées
 Analyse et tentative d’optimisation des anciennes requêtes utilisées pour le filtrage des KPIs, dans le but d’améliorer la performance et la lisibilité du code.
 
 Réflexion autour de la migration potentielle de JIRA vers Unity, en mettant en avant la nécessité d’anticiper cette transition en garantissant une flexibilité du code et une structure facilement adaptable à d’autres sources de données.
