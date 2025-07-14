@@ -1,3 +1,12 @@
+Suite à nos vérifications et investigations, nous vous confirmons que votre situation est bien régularisée. Les messages ont bien été envoyés, mais ils ont été rejetés au niveau de notre partenaire Infobip, en raison d’un problème de préfixe du numéro.
+
+En effet, le numéro renseigné commence par +2507..., alors qu’il devrait débuter par le préfixe ivoirien +225. Ce décalage empêche la bonne livraison du message.
+
+Nous vous invitons donc à corriger le numéro dans votre profil (en ajoutant le préfixe +225) puis à recommencer la procédure de changement de mot de passe. Vous devriez recevoir le message normalement par la suite.
+
+N’hésitez pas à revenir vers nous en cas de besoin.
+Bien cordialement,
+
 Analyse et tentative d’optimisation des anciennes requêtes utilisées pour le filtrage des KPIs, dans le but d’améliorer la performance et la lisibilité du code.
 
 Réflexion autour de la migration potentielle de JIRA vers Unity, en mettant en avant la nécessité d’anticiper cette transition en garantissant une flexibilité du code et une structure facilement adaptable à d’autres sources de données.
