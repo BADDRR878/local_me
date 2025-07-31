@@ -16,6 +16,37 @@ Cordialement,"
 Analyse par Business Line → Mettre en place une vue analytique détaillée par BL (Monétique, Risque, IBE, etc.) afin de faciliter l’identification des points critiques et l’évaluation des performances spécifiques à chaque domaine.
 
 Reporting et visualisation → Développer plus de rapports comparatifs (ex. par filiale, par application, par période) pour enrichir la lecture croisée des indicateurs et permettre une meilleure prise de décision stratégique.
+\\\\\\\\\\\\
+ Proposition : Développement d’un Chatbot de prévention des incidents récurrents    
+Identifier automatiquement les incidents récurrents dans Jira.
+
+Alerter les équipes en cas de patterns anormaux ou répétitifs.
+
+Suggérer des actions préventives ou plans d'action basés sur les résolutions passées.
+
+avantages et contraintes : 
+Identifier les incidents récurrents dans l’historique Jira.
+Alerter les équipes sur des patterns ou anomalies potentielles avant qu'ils ne se reproduisent.
+Suggérer des actions préventives basées sur les résolutions passées.(les plans d'actions) 
+developement des modeles from scratch a cause des contraintes de securite 
+"""""""""""""""""""""""""""""""""""""""""""""""""""""
+Modèles à développer from scratch (pas de solution SaaS possible) en raison des exigences de sécurité.
+
+Nécessite un historique structuré et suffisamment riche.
+
+
+essayer de faire  une demande de  création d’un compte de test (apres la cloture des comptes qui ne sont pas encore au GA ) 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
