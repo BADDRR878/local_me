@@ -285,3 +285,94 @@ public class CheckappEndpoint implements CheckappAPI {
         importUseCase.importFromJira(command);
     }
 }
+
+
+
+
+
+
+
+
+
+
+\\\\\\\\\\\\\\\\\\\
+package com.sgabs.checkapp.services.gateway.outbound.persistence.jpa.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.util.*;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserEntity {
+
+    @Id
+    private String matricule; // unique ID SG
+
+    private String nom;
+    private String prenom;
+    private String email;
+
+    @Enumerated(EnumType.STRING)
+    private UserRole role;
+
+    private String zone;
+    private String pays;
+    private String site;
+
+    // Relation : un utilisateur peut être responsable ou créateur de plusieurs incidents
+    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<IncidentEntity> incidents;
+
+    // Relation avec les applications (ex: responsable d'une ou plusieurs applications)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "user_applications",
+        joinColumns = @JoinColumn(name = "user_matricule"),
+        inverseJoinColumns = @JoinColumn(name = "application_id")
+    )
+    private Set<ApplicationEntity> applications;
+
+}
+********
+Dans IncidentEntity :
+java
+Copy
+Edit
+@ManyToOne
+@JoinColumn(name = "created_by", referencedColumnName = "matricule")
+private UserEntity createdBy;
+Dans ApplicationEntity :
+java
+Copy
+Edit
+@ManyToMany(mappedBy = "applications")
+private Set<UserEntity> responsables;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
