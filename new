@@ -1,4 +1,86 @@
-Finalisation et mise en place de la première version du chatbot destiné à aider à la prise de décision au sein de la GA.
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-Le chatbot est capable de fournir des suggestions et informations pertinentes lors du traitement des incident
-Discussion autour de solutions alternatives pour améliorer la réactivité de l’application et garantir un fonctionnement fluide quel que soit l'architecture . 
+    <!-- Table USER -->
+    <changeSet id="1" author="checkapp">
+        <createTable tableName="users">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="matricule" type="VARCHAR(50)" />
+            <column name="nom" type="VARCHAR(100)" />
+            <column name="prenom" type="VARCHAR(100)" />
+            <column name="email_address" type="VARCHAR(150)" />
+            <column name="role" type="VARCHAR(50)" />
+            <column name="zone" type="VARCHAR(100)" />
+            <column name="pays" type="VARCHAR(100)" />
+            <column name="site" type="VARCHAR(100)" />
+        </createTable>
+    </changeSet>
+
+    <!-- Table APPLICATION -->
+    <changeSet id="2" author="checkapp">
+        <createTable tableName="applications">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="name" type="VARCHAR(150)" />
+        </createTable>
+    </changeSet>
+
+    <!-- Table FILIALE -->
+    <changeSet id="3" author="checkapp">
+        <createTable tableName="filiales">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="name" type="VARCHAR(150)" />
+        </createTable>
+    </changeSet>
+
+    <!-- Table BUSINESS_LINE -->
+    <changeSet id="4" author="checkapp">
+        <createTable tableName="business_lines">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="name" type="VARCHAR(150)" />
+        </createTable>
+    </changeSet>
+
+    <!-- Table INCIDENT -->
+    <changeSet id="5" author="checkapp">
+        <createTable tableName="incidents">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="key" type="VARCHAR(50)" />
+            <column name="summary" type="VARCHAR(255)" />
+            <column name="description" type="TEXT" />
+            <column name="status" type="VARCHAR(50)" />
+            <column name="priority" type="VARCHAR(50)" />
+            <column name="type" type="VARCHAR(50)" />
+            <column name="created_at" type="TIMESTAMP" />
+            <column name="updated_at" type="TIMESTAMP" />
+            <!-- Foreign keys -->
+            <column name="application_id" type="BIGINT" />
+            <column name="filiale_id" type="BIGINT" />
+            <column name="business_line_id" type="BIGINT" />
+            <column name="reporter_id" type="BIGINT" />
+            <column name="assignee_id" type="BIGINT" />
+        </createTable>
+        <addForeignKeyConstraint baseTableName="incidents" baseColumnNames="application_id" referencedTableName="applications" referencedColumnNames="id" constraintName="fk_incident_application"/>
+        <addForeignKeyConstraint baseTableName="incidents" baseColumnNames="filiale_id" referencedTableName="filiales" referencedColumnNames="id" constraintName="fk_incident_filiale"/>
+        <addForeignKeyConstraint baseTableName="incidents" baseColumnNames="business_line_id" referencedTableName="business_lines" referencedColumnNames="id" constraintName="fk_incident_businessline"/>
+        <addForeignKeyConstraint baseTableName="incidents" baseColumnNames="reporter_id" referencedTableName="users" referencedColumnNames="id" constraintName="fk_incident_reporter"/>
+        <addForeignKeyConstraint baseTableName="incidents" baseColumnNames="assignee_id" referencedTableName="users" referencedColumnNames="id" constraintName="fk_incident_assignee"/>
+    </changeSet>
+
+    <!-- Table PLAN_ACTION -->
+    <changeSet id="6" author="checkapp">
+        <createTable tableName="plan_actions">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" primaryKey="true"/>
+            <column name="action_description" type="TEXT" />
+            <column name="date_debut" type="DATE" />
+            <column name="date_echeance" type="DATE" />
+            <column name="status" type="VARCHAR(50)" />
+            <column name="incident_id" type="BIGINT" />
+        </createTable>
+        <addForeignKeyConstraint baseTableName="plan_actions" baseColumnNames="incident_id" referencedTableName="incidents" referencedColumnNames="id" constraintName="fk_planaction_incident"/>
+    </changeSet>
+
+</databaseChangeLog>
