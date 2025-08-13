@@ -1,0 +1,540 @@
+1) API (DTOs + Use case + Endpoint)
+checkapp-api/src/main/java/com/socgen/unibank/services/api/model/CreateIncidentRequest.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class CreateIncidentRequest {
+    private String key;
+    private String summary;
+    private String description;
+    private String status;      // StatutIncident en base
+    private String priority;    // PriorityIncident en base
+    private String type;
+    private String reporter;    // nom/igg; on mappe vers User plus tard
+    private String assignee;    // nom/igg
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    private Long applicationId;     // FK -> Application
+    private Long filialeId;         // FK -> Filiale
+    private Long businessLineId;    // FK -> BusinessLine
+}
+CreateIncidentResponse.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class CreateIncidentResponse {
+    private Long id;
+    private String key;
+    private String summary;
+    private String description;
+    private String status;
+    private String priority;
+    private String type;
+    private String reporter;
+    private String assignee;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    private Long applicationId;
+    private Long filialeId;
+    private Long businessLineId;
+}
+IncidentResponse.java (pour GET/list/detail)
+java
+Copy
+Edit
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class IncidentResponse {
+    private Long id;
+    private String key;
+    private String summary;
+    private String description;
+    private String status;
+    private String priority;
+    private String type;
+    private String reporter;
+    private String assignee;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    private String applicationName;
+    private String filialeName;
+    private String businessLineName;
+}
+usecases/CreateIncident.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.api.usecases;
+
+import com.socgen.unibank.platform.domain.Command;
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+
+public interface CreateIncident extends Command {
+    CreateIncidentResponse handle(CreateIncidentRequest input, RequestContext context);
+}
+CheckappAPI.java (endpoint REST contract)
+java
+Copy
+Edit
+package com.socgen.unibank.services.api;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RequestMapping(value = "/api/incidents", produces = "application/json")
+public interface CheckappAPI {
+
+    @PostMapping
+    CreateIncidentResponse create(@RequestBody CreateIncidentRequest input, RequestContext ctx);
+
+    @GetMapping
+    List<IncidentResponse> list(RequestContext ctx);
+
+    @GetMapping("/{id}")
+    IncidentResponse getById(@PathVariable Long id, RequestContext ctx);
+}
+2) Core (use case + port)
+core/utils/IncidentRepository.java (port hexagonal)
+java
+Copy
+Edit
+package com.socgen.unibank.services.core.utils;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface IncidentRepository {
+    IncidentEntity save(IncidentEntity incident);
+    CreateIncidentResponse toCreateDto(IncidentEntity entity);
+    IncidentResponse toResponseDto(IncidentEntity entity);
+    List<IncidentResponse> findAllAsDto();
+    Optional<IncidentEntity> findById(Long id);
+}
+core/usecases/CreateIncidentImpl.java
+Attention : classe concrète (pas abstract), et @Service pour l’injection Spring.
+
+java
+Copy
+Edit
+package com.socgen.unibank.services.core.usecases;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.usecases.CreateIncident;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.*;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.PriorityIncident;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.StatutIncident;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class CreateIncidentImpl implements CreateIncident {
+
+    private final IncidentRepository incidentRepository;
+    private final ApplicationJpaRepo applicationJpaRepo;
+    private final FilialeJpaRepo filialeJpaRepo;
+    private final BusinessLineJpaRepo businessLineJpaRepo;
+    private final UserJpaRepo userJpaRepo;
+
+    @Override
+    public CreateIncidentResponse handle(CreateIncidentRequest input, RequestContext context) {
+
+        IncidentEntity e = new IncidentEntity();
+        e.setKey(input.getKey());
+        e.setSummary(input.getSummary());
+        e.setDescription(input.getDescription());
+        e.setType(input.getType());
+        e.setCreatedAt(input.getCreatedAt());
+        e.setUpdatedAt(input.getUpdatedAt());
+
+        // enums (string -> enum) si non null
+        if (input.getStatus() != null) e.setStatus(StatutIncident.valueOf(input.getStatus()));
+        if (input.getPriority() != null) e.setPriority(PriorityIncident.valueOf(input.getPriority()));
+
+        // FK simples
+        if (input.getApplicationId() != null) {
+            e.setApplication(applicationJpaRepo.findById(input.getApplicationId()).orElse(null));
+        }
+        if (input.getFilialeId() != null) {
+            e.setFiliale(filialeJpaRepo.findById(input.getFilialeId()).orElse(null));
+        }
+        if (input.getBusinessLineId() != null) {
+            e.setBusinessLine(businessLineJpaRepo.findById(input.getBusinessLineId()).orElse(null));
+        }
+
+        // reporter / assignee (exemple simple : on stocke les libellés; plus tard tu pourras relier à UserEntity)
+        e.setReporter(input.getReporter());
+        e.setAssignee(input.getAssignee());
+
+        IncidentEntity saved = incidentRepository.save(e);
+        return incidentRepository.toCreateDto(saved);
+    }
+}
+3) Gateways (JPA) : enums, entités, repos, adapter
+jpa/enums/PriorityIncident.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums;
+
+public enum PriorityIncident { P0, P1, P2, P3 }
+jpa/enums/StatutIncident.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums;
+
+public enum StatutIncident { EN_COURS, RESOLU, APPROUVE, CLOS }
+jpa/enums/PlanActionStatus.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums;
+
+public enum PlanActionStatus { TODO, IN_PROGRESS, DONE }
+jpa/ApplicationEntity.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity @Table(name="applications")
+@Getter @Setter @NoArgsConstructor
+public class ApplicationEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable=false, unique=true)
+    private String name;
+}
+jpa/FilialeEntity.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity @Table(name="filiales")
+@Getter @Setter @NoArgsConstructor
+public class FilialeEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable=false, unique=true)
+    private String name;
+}
+jpa/BusinessLineEntity.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity @Table(name="business_lines")
+@Getter @Setter @NoArgsConstructor
+public class BusinessLineEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable=false, unique=true)
+    private String name;
+}
+jpa/UserEntity.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity @Table(name="users")
+@Getter @Setter @NoArgsConstructor
+public class UserEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String matricule;
+    private String nom;
+    private String prenom;
+    private String emailAddress;
+    private String role;     // ADMIN / USER / TEAM_LEAD (stocké en texte)
+    private String zone;
+    private String pays;
+    private String site;
+}
+jpa/IncidentEntity.java (la seule !)
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.PriorityIncident;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.StatutIncident;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity @Table(name="incidents")
+@Getter @Setter @NoArgsConstructor
+public class IncidentEntity {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name="key", length=50)
+    private String key;
+
+    @Column(length=255)
+    private String summary;
+
+    @Lob
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    private StatutIncident status;
+
+    @Enumerated(EnumType.STRING)
+    private PriorityIncident priority;
+
+    private String type;
+
+    private String reporter;   // simple string (pour démarrer)
+    private String assignee;   // simple string
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // Relations
+    @ManyToOne @JoinColumn(name="application_id")
+    private ApplicationEntity application;
+
+    @ManyToOne @JoinColumn(name="filiale_id")
+    private FilialeEntity filiale;
+
+    @ManyToOne @JoinColumn(name="business_line_id")
+    private BusinessLineEntity businessLine;
+
+    @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PlanActionEntity> planActions = new ArrayList<>();
+}
+jpa/PlanActionEntity.java
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.PlanActionStatus;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDate;
+
+@Entity @Table(name="plan_actions")
+@Getter @Setter @NoArgsConstructor
+public class PlanActionEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Lob
+    private String actionDescription;
+
+    private LocalDate dateDebut;
+    private LocalDate dateEcheance;
+
+    @Enumerated(EnumType.STRING)
+    private PlanActionStatus status;
+
+    @ManyToOne @JoinColumn(name="incident_id", nullable=false)
+    private IncidentEntity incident;
+}
+Repositories Spring Data
+java
+Copy
+Edit
+// ApplicationJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface ApplicationJpaRepo extends JpaRepository<ApplicationEntity, Long> { }
+
+// FilialeJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface FilialeJpaRepo extends JpaRepository<FilialeEntity, Long> { }
+
+// BusinessLineJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface BusinessLineJpaRepo extends JpaRepository<BusinessLineEntity, Long> { }
+
+// UserJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface UserJpaRepo extends JpaRepository<UserEntity, Long> { }
+
+// IncidentJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+import org.springframework.data.jpa.repository.JpaRepository;
+public interface IncidentJpaRepo extends JpaRepository<IncidentEntity, Long> { }
+Adapter (impl du port IncidentRepository)
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.outbound;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Component
+@RequiredArgsConstructor
+public class IncidentRepositoryImpl implements IncidentRepository {
+
+    private final IncidentJpaRepo incidentJpaRepo;
+
+    @Override
+    public IncidentEntity save(IncidentEntity incident) {
+        return incidentJpaRepo.save(incident);
+    }
+
+    @Override
+    public CreateIncidentResponse toCreateDto(IncidentEntity e) {
+        return new CreateIncidentResponse(
+                e.getId(), e.getKey(), e.getSummary(), e.getDescription(),
+                e.getStatus() != null ? e.getStatus().name() : null,
+                e.getPriority() != null ? e.getPriority().name() : null,
+                e.getType(), e.getReporter(), e.getAssignee(),
+                e.getCreatedAt(), e.getUpdatedAt(),
+                e.getApplication() != null ? e.getApplication().getId() : null,
+                e.getFiliale() != null ? e.getFiliale().getId() : null,
+                e.getBusinessLine() != null ? e.getBusinessLine().getId() : null
+        );
+    }
+
+    @Override
+    public IncidentResponse toResponseDto(IncidentEntity e) {
+        return new IncidentResponse(
+                e.getId(), e.getKey(), e.getSummary(), e.getDescription(),
+                e.getStatus() != null ? e.getStatus().name() : null,
+                e.getPriority() != null ? e.getPriority().name() : null,
+                e.getType(), e.getReporter(), e.getAssignee(),
+                e.getCreatedAt(), e.getUpdatedAt(),
+                e.getApplication() != null ? e.getApplication().getName() : null,
+                e.getFiliale() != null ? e.getFiliale().getName() : null,
+                e.getBusinessLine() != null ? e.getBusinessLine().getName() : null
+        );
+    }
+
+    @Override
+    public List<IncidentResponse> findAllAsDto() {
+        return incidentJpaRepo.findAll().stream()
+                .map(this::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<IncidentEntity> findById(Long id) {
+        return incidentJpaRepo.findById(id);
+    }
+}
+4) Controller concret (inbound adapter)
+Si ton projet suit le pattern “interface API + endpoint”, crée un endpoint qui implémente CheckappAPI (dans checkapp-gateways inbound) :
+
+java
+Copy
+Edit
+package com.socgen.unibank.services.gateways.inbound;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.CheckappAPI;
+import com.socgen.unibank.services.api.model.CreateIncidentRequest;
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.api.usecases.CreateIncident;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+public class CheckappEndpoint implements CheckappAPI {
+
+    private final CreateIncident createIncident;
+    private final IncidentRepository incidentRepository;
+
+    @Override
+    public CreateIncidentResponse create(CreateIncidentRequest input, RequestContext ctx) {
+        return createIncident.handle(input, ctx);
+    }
+
+    @Override
+    public List<IncidentResponse> list(RequestContext ctx) {
+        return incidentRepository.findAllAsDto();
+    }
+
+    @Override
+    public IncidentResponse getById(Long id, RequestContext ctx) {
+        return incidentRepository.findById(id)
+                .map(incidentRepository::toResponseDto)
+                .orElse(null);
+    }
+}
+5) Points importants pour éviter tes erreurs passées
+Une seule IncidentEntity dans tout le repo. Supprime les doublons (souvent un exemplaire se cache dans build/ ou un ancien module).
+
+Ne mets pas abstract sur CreateIncidentImpl.
+
+Vérifie les packages : tous les imports doivent pointer vers ...persistence.jpa (et pas persistance !).
+
+Les enums sont mappées avec @Enumerated(EnumType.STRING).
+
+Les DTO status/priority arrivent en String → convertis avec valueOf vers les enums.
