@@ -1,3 +1,20 @@
+<changeSet id="create-table-kpi" author="checkapp">
+    <createTable tableName="kpi">
+        <column name="id" type="BIGSERIAL">
+            <constraints primaryKey="true"/>
+        </column>
+        <column name="date_calcul" type="DATE"/>
+        <column name="taux_disponibilite" type="DECIMAL(5,2)"/>
+        <column name="mttr_minutes" type="BIGINT"/>
+        <column name="mtbf_minutes" type="BIGINT"/>
+        <column name="pourcentage_critique" type="DECIMAL(5,2)"/>
+    </createTable>
+</changeSet>
+
+
+
+
+
 // Hexagonal import depuis Jira avec WebClient — "CheckApp"
 // Modules : checkapp-api / checkapp-core / checkapp-gateways
 // Objectif : exposer POST /api/incidents/import, appeler Jira (WebClient), mapper -> IncidentEntity, persister (JPA), lister/filtrer.
