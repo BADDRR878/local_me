@@ -1,0 +1,481 @@
+// Hexagonal import depuis Jira avec WebClient — "CheckApp"
+// Modules : checkapp-api / checkapp-core / checkapp-gateways
+// Objectif : exposer POST /api/incidents/import, appeler Jira (WebClient), mapper -> IncidentEntity, persister (JPA), lister/filtrer.
+
+// =====================================================================
+// 0) PROPRIÉTÉS (application.yml) — à mettre dans le module Spring Boot (gateway)
+// =====================================================================
+/*
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/checkapp
+    username: postgres
+    password: your_pwd
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+jira:
+  base-url: https://your-domain.atlassian.net
+  api: /rest/api/3
+  email: your.email@company.com       # si auth Basic (email + apiToken)
+  token: your_jira_api_token          # PAT
+  project-key: CHECK                  # défaut (optionnel)
+  page-size: 100
+  enabled: true
+
+logging.level.com.socgen.unibank: INFO
+*/
+
+// =====================================================================
+// 1) API (checkapp-api)
+// =====================================================================
+
+// 1.1) DTOs d'import
+// 📄 checkapp-api/src/main/java/com/socgen/unibank/services/api/model/ImportJiraIncidentsRequest.java
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class ImportJiraIncidentsRequest {
+    private String projectKey;     // ex: "CHECK"
+    private String jql;            // ex: "project=CHECK AND updated >= -7d"
+    private Integer maxResults;    // override du page-size
+}
+
+// 📄 checkapp-api/src/main/java/com/socgen/unibank/services/api/model/ImportSummaryResponse.java
+package com.socgen.unibank.services.api.model;
+
+import lombok.*;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class ImportSummaryResponse {
+    private int fetched;  // nb issus récupérées de Jira
+    private int saved;    // nb incidents persistés/mergés
+}
+
+// (DTOs Incident déjà fournis précédemment : CreateIncidentRequest/Response, IncidentResponse)
+
+// 1.2) Use case d'import (contrat)
+// 📄 checkapp-api/src/main/java/com/socgen/unibank/services/api/usecases/ImportJiraIncidents.java
+package com.socgen.unibank.services.api.usecases;
+
+import com.socgen.unibank.platform.domain.Command;
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.ImportJiraIncidentsRequest;
+import com.socgen.unibank.services.api.model.ImportSummaryResponse;
+
+public interface ImportJiraIncidents extends Command {
+    ImportSummaryResponse handle(ImportJiraIncidentsRequest input, RequestContext ctx);
+}
+
+// 1.3) Contrat REST
+// 📄 checkapp-api/src/main/java/com/socgen/unibank/services/api/CheckappAPI.java
+package com.socgen.unibank.services.api;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.*;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RequestMapping(value = "/api/incidents", produces = "application/json")
+public interface CheckappAPI {
+    @PostMapping
+    CreateIncidentResponse create(@RequestBody CreateIncidentRequest input, RequestContext ctx);
+
+    @GetMapping
+    List<IncidentResponse> list(RequestContext ctx);
+
+    @GetMapping("/{id}")
+    IncidentResponse getById(@PathVariable Long id, RequestContext ctx);
+
+    @PostMapping("/import")
+    ImportSummaryResponse importFromJira(@RequestBody ImportJiraIncidentsRequest input, RequestContext ctx);
+}
+
+// =====================================================================
+// 2) CORE (checkapp-core)
+// =====================================================================
+
+// 2.1) Port vers la DB (déjà fourni précédemment)
+// 📄 checkapp-core/src/main/java/com/socgen/unibank/services/core/utils/IncidentRepository.java
+package com.socgen.unibank.services.core.utils;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.IncidentEntity;
+
+import java.util.*;
+
+public interface IncidentRepository {
+    IncidentEntity save(IncidentEntity incident);
+    Optional<IncidentEntity> findByKey(String key);
+    CreateIncidentResponse toCreateDto(IncidentEntity entity);
+    IncidentResponse toResponseDto(IncidentEntity entity);
+    List<IncidentResponse> findAllAsDto();
+    Optional<IncidentEntity> findById(Long id);
+}
+
+// 2.2) Port HTTP Jira (core <- outbound adapter)
+// 📄 checkapp-core/src/main/java/com/socgen/unibank/services/core/utils/JiraIssuePort.java
+package com.socgen.unibank.services.core.utils;
+
+import com.socgen.unibank.services.core.utils.dto.JiraIssueDto;
+import java.util.List;
+
+public interface JiraIssuePort {
+    List<JiraIssueDto> searchIssues(String jql, Integer maxResults);
+}
+
+// 2.3) DTO minimal pour Jira (core)
+// 📄 checkapp-core/src/main/java/com/socgen/unibank/services/core/utils/dto/JiraIssueDto.java
+package com.socgen.unibank.services.core.utils.dto;
+
+import lombok.*;
+import java.time.*;
+
+@Data @NoArgsConstructor @AllArgsConstructor
+public class JiraIssueDto {
+    private String key;
+    private String summary;
+    private String description;
+    private String status;     // name
+    private String priority;   // name (peut être null)
+    private String type;       // issueType name
+    private String reporter;   // displayName
+    private String assignee;   // displayName
+    private Instant created;   // timestamps Jira ISO
+    private Instant updated;
+}
+
+// 2.4) Impl du use case d'import
+// 📄 checkapp-core/src/main/java/com/socgen/unibank/services/core/usecases/ImportJiraIncidentsImpl.java
+package com.socgen.unibank.services.core.usecases;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.model.ImportJiraIncidentsRequest;
+import com.socgen.unibank.services.api.model.ImportSummaryResponse;
+import com.socgen.unibank.services.api.usecases.ImportJiraIncidents;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import com.socgen.unibank.services.core.utils.JiraIssuePort;
+import com.socgen.unibank.services.core.utils.dto.JiraIssueDto;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.*;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.enums.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.*;
+import java.util.*;
+
+@Service
+@RequiredArgsConstructor
+public class ImportJiraIncidentsImpl implements ImportJiraIncidents {
+
+    private final JiraIssuePort jiraIssuePort;
+    private final IncidentRepository incidentRepository;
+    private final ApplicationJpaRepo applicationJpaRepo;
+    private final FilialeJpaRepo filialeJpaRepo;
+    private final BusinessLineJpaRepo businessLineJpaRepo;
+
+    @Override
+    public ImportSummaryResponse handle(ImportJiraIncidentsRequest input, RequestContext ctx) {
+        String jql = (input.getJql() != null && !input.getJql().isBlank())
+                ? input.getJql()
+                : (input.getProjectKey() != null ? "project=" + input.getProjectKey() : "");
+        int pageSize = input.getMaxResults() != null ? input.getMaxResults() : 100;
+
+        List<JiraIssueDto> issues = jiraIssuePort.searchIssues(jql, pageSize);
+        int saved = 0;
+        for (JiraIssueDto ji : issues) {
+            IncidentEntity e = incidentRepository.findByKey(ji.getKey()).orElse(new IncidentEntity());
+            e.setKey(ji.getKey());
+            e.setSummary(ji.getSummary());
+            e.setDescription(ji.getDescription());
+            // mapping enums (safe)
+            if (ji.getStatus() != null) {
+                try { e.setStatus(StatutIncident.valueOf(ji.getStatus().toUpperCase().replace(' ', '_'))); } catch (Exception ignore) {}
+            }
+            if (ji.getPriority() != null) {
+                try { e.setPriority(PriorityIncident.valueOf(ji.getPriority().toUpperCase())); } catch (Exception ignore) {}
+            }
+            e.setType(ji.getType());
+            e.setReporter(ji.getReporter());
+            e.setAssignee(ji.getAssignee());
+            e.setCreatedAt(ji.getCreated() != null ? LocalDateTime.ofInstant(ji.getCreated(), ZoneOffset.UTC) : null);
+            e.setUpdatedAt(ji.getUpdated() != null ? LocalDateTime.ofInstant(ji.getUpdated(), ZoneOffset.UTC) : null);
+
+            // (optionnel) si tu veux rattacher une application par nom = summary contains
+            // e.setApplication(...);
+
+            incidentRepository.save(e);
+            saved++;
+        }
+        return new ImportSummaryResponse(issues.size(), saved);
+    }
+}
+
+// =====================================================================
+// 3) GATEWAYS (checkapp-gateways) — Outbound HTTP + JPA + Inbound REST
+// =====================================================================
+
+// 3.1) Config WebClient
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/config/WebClientConfig.java
+package com.socgen.unibank.services.gateways.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.reactive.function.client.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+@Configuration
+public class WebClientConfig {
+
+    @Bean
+    public WebClient jiraWebClient(
+            @Value("${jira.base-url}") String baseUrl,
+            @Value("${jira.email}") String email,
+            @Value("${jira.token}") String token
+    ) {
+        String basic = email + ":" + token; // Jira Cloud: email + API token
+        String auth = "Basic " + Base64.getEncoder().encodeToString(basic.getBytes(StandardCharsets.UTF_8));
+        return WebClient.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, auth)
+                .defaultHeader(HttpHeaders.ACCEPT, "application/json")
+                .build();
+    }
+}
+
+// 3.2) Adapter HTTP Jira (impl du port JiraIssuePort)
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/outbound/http/JiraIssueClient.java
+package com.socgen.unibank.services.gateways.outbound.http;
+
+import com.socgen.unibank.services.core.utils.JiraIssuePort;
+import com.socgen.unibank.services.core.utils.dto.JiraIssueDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.*;
+
+@Component
+@RequiredArgsConstructor
+public class JiraIssueClient implements JiraIssuePort {
+
+    private final WebClient jiraWebClient;
+
+    @Value("${jira.api:/rest/api/3}")
+    private String apiPrefix;
+
+    @Override
+    public List<JiraIssueDto> searchIssues(String jql, Integer maxResults) {
+        String path = apiPrefix + "/search";
+        Map<?,?> res = jiraWebClient.get()
+                .uri(uriBuilder -> uriBuilder.path(path)
+                        .queryParam("jql", jql)
+                        .queryParam("maxResults", maxResults != null ? maxResults : 100)
+                        .build())
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+        List<Map<String,Object>> issues = (List<Map<String,Object>>) res.getOrDefault("issues", List.of());
+        List<JiraIssueDto> out = new ArrayList<>();
+        for (Map<String,Object> issue : issues) {
+            String key = (String) issue.get("key");
+            Map<String,Object> fields = (Map<String,Object>) issue.get("fields");
+            if (fields == null) continue;
+            Map<String,Object> status = (Map<String,Object>) fields.get("status");
+            Map<String,Object> priority = (Map<String,Object>) fields.get("priority");
+            Map<String,Object> type = (Map<String,Object>) fields.get("issuetype");
+            Map<String,Object> reporter = (Map<String,Object>) fields.get("reporter");
+            Map<String,Object> assignee = (Map<String,Object>) fields.get("assignee");
+
+            JiraIssueDto dto = new JiraIssueDto();
+            dto.setKey(key);
+            dto.setSummary((String) fields.get("summary"));
+            dto.setDescription((String) fields.get("description"));
+            dto.setStatus(status != null ? (String) status.get("name") : null);
+            dto.setPriority(priority != null ? (String) priority.get("name") : null);
+            dto.setType(type != null ? (String) type.get("name") : null);
+            dto.setReporter(reporter != null ? (String) reporter.get("displayName") : null);
+            dto.setAssignee(assignee != null ? (String) assignee.get("displayName") : null);
+            // created/updated au format texte; on laisse null ici, ou ajouter un parse ISO si besoin
+            out.add(dto);
+        }
+        return out;
+    }
+}
+
+// 3.3) Entités & Repos JPA (rappel condensé) — **UNE seule IncidentEntity**
+// (identiques à la version fournie précédemment — à garder dans persistence.jpa)
+
+// 3.4) Adapter JPA (impl IncidentRepository)
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/outbound/IncidentRepositoryImpl.java
+package com.socgen.unibank.services.gateways.outbound;
+
+import com.socgen.unibank.services.api.model.CreateIncidentResponse;
+import com.socgen.unibank.services.api.model.IncidentResponse;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import com.socgen.unibank.services.gateways.outbound.persistence.jpa.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Component
+@RequiredArgsConstructor
+public class IncidentRepositoryImpl implements IncidentRepository {
+
+    private final IncidentJpaRepo incidentJpaRepo;
+
+    @Override public IncidentEntity save(IncidentEntity incident) { return incidentJpaRepo.save(incident); }
+    @Override public Optional<IncidentEntity> findByKey(String key) { return incidentJpaRepo.findByKey(key); }
+
+    @Override
+    public CreateIncidentResponse toCreateDto(IncidentEntity e) {
+        return new CreateIncidentResponse(
+                e.getId(), e.getKey(), e.getSummary(), e.getDescription(),
+                e.getStatus() != null ? e.getStatus().name() : null,
+                e.getPriority() != null ? e.getPriority().name() : null,
+                e.getType(), e.getReporter(), e.getAssignee(),
+                e.getCreatedAt(), e.getUpdatedAt(),
+                e.getApplication() != null ? e.getApplication().getId() : null,
+                e.getFiliale() != null ? e.getFiliale().getId() : null,
+                e.getBusinessLine() != null ? e.getBusinessLine().getId() : null
+        );
+    }
+
+    @Override
+    public IncidentResponse toResponseDto(IncidentEntity e) {
+        return new IncidentResponse(
+                e.getId(), e.getKey(), e.getSummary(), e.getDescription(),
+                e.getStatus() != null ? e.getStatus().name() : null,
+                e.getPriority() != null ? e.getPriority().name() : null,
+                e.getType(), e.getReporter(), e.getAssignee(),
+                e.getCreatedAt(), e.getUpdatedAt(),
+                e.getApplication() != null ? e.getApplication().getName() : null,
+                e.getFiliale() != null ? e.getFiliale().getName() : null,
+                e.getBusinessLine() != null ? e.getBusinessLine().getName() : null
+        );
+    }
+
+    @Override public List<IncidentResponse> findAllAsDto() {
+        return incidentJpaRepo.findAll().stream().map(this::toResponseDto).collect(Collectors.toList());
+    }
+
+    @Override public Optional<IncidentEntity> findById(Long id) { return incidentJpaRepo.findById(id); }
+}
+
+// 3.5) Repository Spring Data (ajout findByKey)
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/outbound/persistence/jpa/IncidentJpaRepo.java
+package com.socgen.unibank.services.gateways.outbound.persistence.jpa;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+public interface IncidentJpaRepo extends JpaRepository<IncidentEntity, Long> {
+    Optional<IncidentEntity> findByKey(String key);
+}
+
+// 3.6) Inbound controller qui implémente l'API
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/inbound/CheckappEndpoint.java
+package com.socgen.unibank.services.gateways.inbound;
+
+import com.socgen.unibank.platform.models.RequestContext;
+import com.socgen.unibank.services.api.CheckappAPI;
+import com.socgen.unibank.services.api.model.*;
+import com.socgen.unibank.services.api.usecases.CreateIncident;
+import com.socgen.unibank.services.api.usecases.ImportJiraIncidents;
+import com.socgen.unibank.services.core.utils.IncidentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+public class CheckappEndpoint implements CheckappAPI {
+
+    private final CreateIncident createIncident;
+    private final ImportJiraIncidents importJiraIncidents;
+    private final IncidentRepository incidentRepository;
+
+    @Override
+    public CreateIncidentResponse create(CreateIncidentRequest input, RequestContext ctx) {
+        return createIncident.handle(input, ctx);
+    }
+
+    @Override
+    public List<IncidentResponse> list(RequestContext ctx) {
+        return incidentRepository.findAllAsDto();
+    }
+
+    @Override
+    public IncidentResponse getById(Long id, RequestContext ctx) {
+        return incidentRepository.findById(id)
+                .map(incidentRepository::toResponseDto)
+                .orElse(null);
+    }
+
+    @Override
+    public ImportSummaryResponse importFromJira(ImportJiraIncidentsRequest input, RequestContext ctx) {
+        return importJiraIncidents.handle(input, ctx);
+    }
+}
+
+// 3.7) (Optionnel) Scheduler d'import automatique
+// 📄 checkapp-gateways/src/main/java/com/socgen/unibank/services/gateways/scheduling/IssueScheduler.java
+package com.socgen.unibank.services.gateways.scheduling;
+
+import com.socgen.unibank.services.api.model.ImportJiraIncidentsRequest;
+import com.socgen.unibank.services.api.model.ImportSummaryResponse;
+import com.socgen.unibank.services.api.usecases.ImportJiraIncidents;
+import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.*;
+import org.springframework.stereotype.Component;
+
+@Component
+@EnableScheduling
+@RequiredArgsConstructor
+public class IssueScheduler {
+
+    private final ImportJiraIncidents importJiraIncidents;
+
+    @Scheduled(cron = "0 0/30 * * * *") // toutes les 30 minutes
+    public void sync() {
+        ImportJiraIncidentsRequest req = new ImportJiraIncidentsRequest(null, "project=CHECK ORDER BY updated DESC", 100);
+        ImportSummaryResponse res = importJiraIncidents.handle(req, null);
+        // log si besoin
+    }
+}
+
+// =====================================================================
+// 4) FLUX END-TO-END (rappel)
+// =====================================================================
+// Front → POST /api/incidents/import  (CheckappEndpoint)
+//   → ImportJiraIncidentsImpl (core)          [orchestration]
+//     → JiraIssuePort.searchIssues (core port)
+//       → JiraIssueClient (gateway outbound)   [WebClient]  appelle Jira /rest/api/3/search
+//     ← List<JiraIssueDto>
+//     → map → IncidentEntity + enums + FK → IncidentRepository.save
+//       → IncidentRepositoryImpl (gateway JPA) → IncidentJpaRepo.save
+//     ← ImportSummaryResponse
+// Front → GET /api/incidents → liste pour dashboard
+
+// =====================================================================
+// 5) CONSEILS
+// =====================================================================
+// - Évite toute 2e copie de IncidentEntity (une seule classe dans persistence.jpa)
+// - @Service pour les use cases (pas abstract) ; @Component pour les adapters
+// - WebClient auth Basic = Base64(email:apiToken) pour Jira Cloud
+// - Commence avec des String pour reporter/assignee; reliera à UserEntity plus tard
+// - Liquibase gère le schéma; pas besoin de CREATE TABLE manuel
