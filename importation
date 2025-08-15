@@ -12,7 +12,28 @@
 </changeSet>
 
 
+""""""""""""""""""""""
+package com.checkapp.domain.enums;
 
+public enum ApplicationName {
+    AMPLITUDE_ACHATS,
+    AMPLITUDE_BANK,
+    AMPLITUDE_CC,
+    AMPLITUDE_ECM,
+    AMPLITUDE_BANK_ER,
+    AMPLITUDE_BANK_MO,
+    AMPLITUDE_CONTENTIEUX,
+    AMPLITUDE_PAIE,
+    AMPLITUDE_PORTALE,
+    AMPLITUDE_RH,
+    AMPLITUDE_SIGNATURE,
+    BANKUP_SGCONNECT,
+    CARTHAGO,
+    COKPIT,
+    EXSTREAM,
+    GED_DOCUBASE;
+}
+""""""""""""""""""""
 
 
 // Hexagonal import depuis Jira avec WebClient — "CheckApp"
