@@ -84,3 +84,158 @@
     </changeSet>
 
 </databaseChangeLog>
+
+
+@Repository
+public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> {
+
+    @Query("SELECT i.application.name, COUNT(i) " +
+           "FROM IncidentEntity i " +
+           "GROUP BY i.application.name")
+    List<Object[]> countIncidentsByApplication();
+
+    @Query("SELECT COUNT(i) FROM IncidentEntity i")
+    long countTotalIncidents();
+
+    @Query("SELECT COUNT(i) FROM IncidentEntity i " +
+           "WHERE i.priority = :priority")
+    long countIncidentsByPriority(@Param("priority") PriorityIncident priority);
+
+    @Query("SELECT SUM(EXTRACT(EPOCH FROM (i.updatedAt - i.createdAt)) / 60) " +
+           "FROM IncidentEntity i " +
+           "WHERE i.priority IN (:criticalPriorities) AND i.status IN (:status)")
+    Long sumDowntimeMinutes(@Param("criticalPriorities") List<PriorityIncident> criticalPriorities,
+                            @Param("status") List<StatutIncident> status);
+}
+
+
+
+///////////////////////////
+1️⃣ Récupération des données depuis la DB
+D’abord, il faut des requêtes optimisées dans ton repository :
+
+java
+Copy
+Edit
+@Repository
+public interface IncidentRepository extends JpaRepository<IncidentEntity, Long> {
+
+    @Query("SELECT i.application.name, COUNT(i) " +
+           "FROM IncidentEntity i " +
+           "GROUP BY i.application.name")
+    List<Object[]> countIncidentsByApplication();
+
+    @Query("SELECT COUNT(i) FROM IncidentEntity i")
+    long countTotalIncidents();
+
+    @Query("SELECT COUNT(i) FROM IncidentEntity i " +
+           "WHERE i.priority = :priority")
+    long countIncidentsByPriority(@Param("priority") PriorityIncident priority);
+
+    @Query("SELECT SUM(EXTRACT(EPOCH FROM (i.updatedAt - i.createdAt)) / 60) " +
+           "FROM IncidentEntity i " +
+           "WHERE i.priority IN (:criticalPriorities) AND i.status IN (:status)")
+    Long sumDowntimeMinutes(@Param("criticalPriorities") List<PriorityIncident> criticalPriorities,
+                            @Param("status") List<StatutIncident> status);
+}
+2️⃣ Logique KPI dans le service
+On applique les formules ici.
+
+java
+Copy
+Edit
+@Service
+public class KpiService {
+
+    private final IncidentRepository incidentRepository;
+
+    public KpiService(IncidentRepository incidentRepository) {
+        this.incidentRepository = incidentRepository;
+    }
+
+    // Nombre total d'incidents par application
+    public Map<String, Long> getIncidentsByApplication() {
+        List<Object[]> results = incidentRepository.countIncidentsByApplication();
+        Map<String, Long> map = new LinkedHashMap<>();
+        for (Object[] row : results) {
+            map.put((String) row[0], (Long) row[1]);
+        }
+        return map;
+    }
+
+    // Pourcentage par application
+    public Map<String, Double> getIncidentPercentageByApplication() {
+        long total = incidentRepository.countTotalIncidents();
+        Map<String, Long> counts = getIncidentsByApplication();
+        Map<String, Double> percentages = new LinkedHashMap<>();
+        counts.forEach((app, count) ->
+            percentages.put(app, Math.round((count * 100.0 / total) * 100.0) / 100.0)
+        );
+        return percentages;
+    }
+
+    // Taux de disponibilité
+    public double getAvailabilityRate(LocalDate start, LocalDate end) {
+        List<PriorityIncident> criticalPriorities = List.of(PriorityIncident.P0, PriorityIncident.P1);
+        List<StatutIncident> statuses = List.of(StatutIncident.RESOLU, StatutIncident.CLOS);
+
+        Long downtimeMinutes = incidentRepository.sumDowntimeMinutes(criticalPriorities, statuses);
+        if (downtimeMinutes == null) downtimeMinutes = 0L;
+
+        long totalMinutes = Duration.between(start.atStartOfDay(), end.atTime(LocalTime.MAX)).toMinutes();
+
+        double rate = ((double) (totalMinutes - downtimeMinutes) / totalMinutes) * 100;
+        return Math.round(rate * 100.0) / 100.0;
+    }
+}
+3️⃣ Exposition via API
+On crée un Controller pour que le front puisse appeler :
+
+java
+Copy
+Edit
+@RestController
+@RequestMapping("/api/kpi")
+public class KpiController {
+
+    private final KpiService kpiService;
+
+    public KpiController(KpiService kpiService) {
+        this.kpiService = kpiService;
+    }
+
+    @GetMapping("/incidents-by-app")
+    public Map<String, Long> getIncidentsByApplication() {
+        return kpiService.getIncidentsByApplication();
+    }
+
+    @GetMapping("/percentage-by-app")
+    public Map<String, Double> getIncidentPercentageByApplication() {
+        return kpiService.getIncidentPercentageByApplication();
+    }
+
+    @GetMapping("/availability-rate")
+    public double getAvailabilityRate(@RequestParam("start") String start,
+                                       @RequestParam("end") String end) {
+        return kpiService.getAvailabilityRate(LocalDate.parse(start), LocalDate.parse(end));
+    }
+}
+4️⃣ Explication
+Nombre total d’incidents par application → Groupement (GROUP BY) par application.name
+
+Pourcentage → (nombre_incidents_app / nombre_total_incidents) * 100
+
+Taux de disponibilité →
+
+On calcule la somme des durées des incidents critiques (P0, P1) qui sont résolus ou clos
+
+On compare avec le temps total de la période pour avoir le pourcentage
+
+
+
+
+
+
+
+
+
